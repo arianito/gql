@@ -16,9 +16,9 @@ const (
 type Builder interface {
 	Select(columns ...string) Builder
 	Table(table string) Builder
-	Or(fn func(builder Builder)) Builder
-	And(fn func(builder Builder)) Builder
-	AndNot(fn func(builder Builder)) Builder
+	Or() Builder
+	And() Builder
+	AndNot() Builder
 	WhereGroup(fn func(builder Builder)) Builder
 	Where(clause string, value interface{}) Builder
 	WhereNot(clause string, value interface{}) Builder
@@ -57,6 +57,12 @@ func (b *MYSQLBuilder) Table(table string) Builder {
 func (b *MYSQLBuilder) BitwiseAnd(field string, with int64, value int64) Builder {
 	b.ops = append(b.ops, b.stp)
 	b.whereClauses = append(b.whereClauses, fmt.Sprintf("%s & %v = %v", field, with, value))
+	return b
+}
+
+func (b *MYSQLBuilder) BitwiseOr(field string, with int64, value int64) Builder {
+	b.ops = append(b.ops, b.stp)
+	b.whereClauses = append(b.whereClauses, fmt.Sprintf("%s | %v = %v", field, with, value))
 	return b
 }
 
@@ -127,19 +133,16 @@ func (b *MYSQLBuilder) WhereGroup(fn func(b Builder)) Builder {
 
 
 
-func (b *MYSQLBuilder) Or(fn func(b Builder)) Builder {
+func (b *MYSQLBuilder) Or() Builder {
 	b.stp = SqlOr
-	fn(b)
 	return b
 }
-func (b *MYSQLBuilder) And(fn func(b Builder)) Builder {
+func (b *MYSQLBuilder) And() Builder {
 	b.stp = SqlAnd
-	fn(b)
 	return b
 }
-func (b *MYSQLBuilder) AndNot(fn func(b Builder)) Builder {
+func (b *MYSQLBuilder) AndNot() Builder {
 	b.stp = SqlAndNot
-	fn(b)
 	return b
 }
 
