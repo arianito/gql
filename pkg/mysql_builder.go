@@ -289,10 +289,10 @@ func (b *QueryBuilder) Query() string {
 			i++
 		}
 		ok = append(ok, "("+values+")")
-		return "UPDATE " + b.tables[0] + " SET " + values+ " WHERE " + b.getWhereClauses(false)
+		return "UPDATE " + strings.Join(b.tables, ", ") + " SET " + values+ " WHERE " + b.getWhereClauses(false)
 	}
 	if b.qtyp == SqlTypDelete {
-		return "DELETE FROM " + b.tables[0] + " WHERE " + b.getWhereClauses(false)
+		return "DELETE FROM " + strings.Join(b.tables, ", ") + " WHERE " + b.getWhereClauses(false)
 	}
 	return ""
 }
