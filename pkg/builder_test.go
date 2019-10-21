@@ -6,18 +6,38 @@ import (
 )
 
 func TestMysqlBuilder(t *testing.T) {
-	q := NewMYSQLBuilder().
-		Table("users").
-		WhereGroup(func(builder Builder) {
-			builder.
-				Where("name", "hello").
-				Or().Where("type", "3")
+	r := Read("files f").
+		Join(Table(func(b Builder) {
+			b.Table("hello")
+		}, "t"), "t.user_id = f.id").
+		GroupBy("f.id").
+		Query()
+	fmt.Println(r)
+	c := Create("files").
+		Fill(&map[string]interface{}{
+			"hello": 123,
+			"name": "aryan",
 		}).
-		WhereGroup(func(builder Builder) {
-			builder.
-				Where("name", "hello").
-				Or().WhereNot("type", "3").And().Where("name", "test")
+		Fill(&map[string]interface{}{
+			"hello": 55,
+			"name": "arash",
 		}).
 		Query()
-	fmt.Println(q)
+	fmt.Println(c)
+	u := Update("files").
+		Fill(&map[string]interface{}{
+			"hello": 123,
+			"name": "aryan",
+		}).
+		Where("id", 2).
+		Query()
+	fmt.Println(u)
+	d := Delete("files").
+		Fill(&map[string]interface{}{
+			"hello": 123,
+			"name": "aryan",
+		}).
+		Where("id", 2).
+		Query()
+	fmt.Println(d)
 }
