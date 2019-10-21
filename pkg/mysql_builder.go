@@ -44,7 +44,9 @@ func (b *QueryBuilder) Table(table string) Builder {
 }
 
 func (b *QueryBuilder) Join(table string, condition string, fn ...func(b Builder)) Builder {
-	bld := &QueryBuilder{}
+	bld := &QueryBuilder{
+		qtyp:SqlTypRead,
+	}
 	if len(fn) > 0 {
 		fn[0](bld)
 	}
@@ -54,7 +56,9 @@ func (b *QueryBuilder) Join(table string, condition string, fn ...func(b Builder
 }
 
 func (b *QueryBuilder) LeftJoin(table string, condition string, fn ...func(b Builder)) Builder {
-	bld := &QueryBuilder{}
+	bld := &QueryBuilder{
+		qtyp:SqlTypRead,
+	}
 	if len(fn) > 0 {
 		fn[0](bld)
 	}
@@ -64,7 +68,9 @@ func (b *QueryBuilder) LeftJoin(table string, condition string, fn ...func(b Bui
 }
 
 func (b *QueryBuilder) RightJoin(table string, condition string, fn ...func(b Builder)) Builder {
-	bld := &QueryBuilder{}
+	bld := &QueryBuilder{
+		qtyp:SqlTypRead,
+	}
 	if len(fn) > 0 {
 		fn[0](bld)
 	}
@@ -101,7 +107,9 @@ func (b *QueryBuilder) GroupBy(clause ...string) Builder {
 	return b
 }
 func (b *QueryBuilder) Having(fn func(b Builder)) Builder {
-	bld := &QueryBuilder{}
+	bld := &QueryBuilder{
+		qtyp:SqlTypRead,
+	}
 	fn(bld)
 	b.having = bld.getWhereClauses(false)
 	return b
@@ -171,14 +179,18 @@ func (b *QueryBuilder) WhereIn(field string, value []interface{}) Builder {
 
 func (b *QueryBuilder) WhereInQuery(field string, fn func(b Builder)) Builder {
 	b.ops = append(b.ops, b.stp)
-	bld := &QueryBuilder{}
+	bld := &QueryBuilder{
+		qtyp:SqlTypRead,
+	}
 	fn(bld)
 	b.wheres = append(b.wheres, fmt.Sprintf("%s IN (%s)", field, bld.Query()))
 	return b
 }
 
 func (b *QueryBuilder) WhereGroup(fn func(b Builder)) Builder {
-	builder := &QueryBuilder{}
+	builder := &QueryBuilder{
+		qtyp:SqlTypRead,
+	}
 	fn(builder)
 	b.wheres = append(b.wheres, fmt.Sprintf("(%s)", builder.getWhereClauses(false)))
 	b.ops = append(b.ops, b.stp)

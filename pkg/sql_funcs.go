@@ -51,7 +51,9 @@ func Sum(expression string, alias ...string) string {
 }
 
 func Query(fn func(builder Builder), alias string) string {
-	b := &QueryBuilder{}
+	b := &QueryBuilder{
+		qtyp:SqlTypRead,
+	}
 	fn(b)
 	return "(" + b.Query() + ") " + alias
 }
