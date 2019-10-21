@@ -108,6 +108,11 @@ func (b *QueryBuilder) Where(field string, value interface{}) Builder {
 	b.wheres = append(b.wheres, fmt.Sprintf("%s = %s", field, interface_to_sql(value)))
 	return b
 }
+func (b *QueryBuilder) Find(value interface{}) Builder {
+	b.ops = append(b.ops, b.stp)
+	b.wheres = append(b.wheres, fmt.Sprintf("id = %s", interface_to_sql(value)))
+	return b
+}
 func (b *QueryBuilder) WhereNot(field string, value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
 	b.wheres = append(b.wheres, fmt.Sprintf("%s != %s", field, interface_to_sql(value)))

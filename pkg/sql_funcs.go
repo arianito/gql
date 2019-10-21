@@ -40,13 +40,6 @@ func Sum(expression string, alias ...string) string {
 	return op
 }
 
-
-func Table(fn func(builder Builder), alias string) string {
-	b := &QueryBuilder{}
-	fn(b)
-	return "(" + b.Query() + ") " + alias
-}
-
 func Query(fn func(builder Builder), alias string) string {
 	b := &QueryBuilder{}
 	fn(b)

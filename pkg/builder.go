@@ -16,6 +16,7 @@ type Builder interface {
 	Having(fn func(b Builder)) Builder
 	WhereGroup(fn func(b Builder)) Builder
 	Where(clause string, value interface{}) Builder
+	Find(value interface{}) Builder
 	WhereNull(clause string) Builder
 	WhereNotNull(clause string) Builder
 	WhereNot(clause string, value interface{}) Builder

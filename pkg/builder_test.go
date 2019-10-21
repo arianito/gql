@@ -7,7 +7,7 @@ import (
 
 func TestMysqlBuilder(t *testing.T) {
 	r := Read("files f").
-		Join(Table(func(b Builder) {
+		Join(Query(func(b Builder) {
 			b.Table("hello")
 		}, "t"), "t.user_id = f.id").
 		GroupBy("f.id").
