@@ -8,7 +8,7 @@ import (
 )
 
 type QueryBuilder struct {
-	values []*map[string]interface{}
+	values []*OBJ
 	tables  []string
 	columns []string
 	wheres  []string
@@ -24,7 +24,7 @@ type QueryBuilder struct {
 	db *sql.DB
 }
 
-func (b *QueryBuilder) Fill(values ...*map[string]interface{}) Builder {
+func (b *QueryBuilder) Fill(values ...*OBJ) Builder {
 	b.values = values
 	return b
 }

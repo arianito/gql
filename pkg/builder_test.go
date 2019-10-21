@@ -14,18 +14,18 @@ func TestMysqlBuilder(t *testing.T) {
 		Query()
 	fmt.Println(r)
 	c := Create("files").
-		Fill(&map[string]interface{}{
+		Fill(&OBJ{
 			"hello": 123,
 			"name": "aryan",
 		}).
-		Fill(&map[string]interface{}{
+		Fill(&OBJ{
 			"hello": 55,
 			"name": "arash",
 		}).
 		Query()
 	fmt.Println(c)
 	u := Update("files").
-		Fill(&map[string]interface{}{
+		Fill(&OBJ{
 			"hello": 123,
 			"name": "aryan",
 		}).
@@ -33,7 +33,7 @@ func TestMysqlBuilder(t *testing.T) {
 		Query()
 	fmt.Println(u)
 	d := Delete("files").
-		Fill(&map[string]interface{}{
+		Fill(&OBJ{
 			"hello": 123,
 			"name": "aryan",
 		}).

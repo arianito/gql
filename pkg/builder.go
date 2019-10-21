@@ -27,7 +27,7 @@ type Builder interface {
 	WhereBetween(clause string, value1 interface{}, value2 interface{}) Builder
 	WhereIn(field string, value []interface{}) Builder
 	WhereInQuery(field string, fn func(b Builder)) Builder
-	Fill(values ...*map[string]interface{}) Builder
+	Fill(values ...*OBJ) Builder
 	Or() Builder
 	And() Builder
 	Count() Builder

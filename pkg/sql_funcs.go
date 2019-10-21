@@ -83,3 +83,5 @@ func Delete(table string) Builder {
 	q.Table(table)
 	return &q
 }
+
+type OBJ map[string]interface{}
