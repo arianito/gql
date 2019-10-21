@@ -20,8 +20,11 @@ const (
 	SqlTypDelete = SqlTyp(3)
 )
 
-func Now() *SqlReserved {
-	return &SqlReserved{content: "NOW()"}
+func Now() SqlReserved {
+	return SqlReserved{content: "NOW()"}
+}
+func Sql(sql string) SqlReserved {
+	return SqlReserved{content: sql}
 }
 
 func Count(name string, alias ...string) string {

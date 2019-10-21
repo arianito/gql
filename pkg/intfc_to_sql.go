@@ -24,8 +24,13 @@ func interface_to_sql(value interface{}) string {
 		return fmt.Sprintf("%s", float_to_string(value.(float64)))
 	case SqlReserved:
 		return (value.(SqlReserved)).content
+	case *SqlReserved:
+		return (value.(*SqlReserved)).content
 	case time.Time:
 		d := value.(time.Time)
+		return interface_to_sql(d.Format("2006-01-02 15:04:05"))
+	case *time.Time:
+		d := value.(*time.Time)
 		return interface_to_sql(d.Format("2006-01-02 15:04:05"))
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, bool:
 		return fmt.Sprintf("%v", value)
