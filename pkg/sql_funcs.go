@@ -20,14 +20,14 @@ const (
 func Count(name string, alias ...string) string {
 	op := "COUNT(" + name + ")"
 	if len(alias) > 0 {
-		op += " as " + alias[0]
+		op += " " + alias[0]
 	}
 	return op
 }
 func CountDistinct(name string, alias ...string) string {
 	op := "COUNT(DISTINCT " + name + ")"
 	if len(alias) > 0 {
-		op += " as " + alias[0]
+		op += " " + alias[0]
 	}
 	return op
 }
@@ -35,7 +35,7 @@ func CountDistinct(name string, alias ...string) string {
 func Sum(expression string, alias ...string) string {
 	op := "SUM(" + expression + ")"
 	if len(alias) > 0 {
-		op += " as " + alias[0]
+		op += " " + alias[0]
 	}
 	return op
 }
@@ -43,7 +43,7 @@ func Sum(expression string, alias ...string) string {
 func Query(fn func(builder Builder), alias string) string {
 	b := &QueryBuilder{}
 	fn(b)
-	return "(" + b.Query() + ") as " + alias
+	return "(" + b.Query() + ") " + alias
 }
 
 func Read(table string) Builder {
