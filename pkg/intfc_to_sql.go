@@ -12,6 +12,9 @@ func float_to_string(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 func interface_to_sql(value interface{}) string {
+	if value == nil {
+		return "NULL"
+	}
 	switch value.(type) {
 	case string:
 		return fmt.Sprintf("'%v'", strings.ReplaceAll(value.(string), "'", "\\'"))
@@ -19,6 +22,8 @@ func interface_to_sql(value interface{}) string {
 		return fmt.Sprintf("%s", float_to_string(float64(value.(float32))))
 	case float64:
 		return fmt.Sprintf("%s", float_to_string(value.(float64)))
+	case SqlReserved:
+		return (value.(SqlReserved)).content
 	case time.Time:
 		d := value.(time.Time)
 		return interface_to_sql(d.Format("2006-01-02 15:04:05"))

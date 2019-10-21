@@ -7,8 +7,11 @@ const (
 	SqlOr     = SqlOp(1)
 	SqlAndNot = SqlOp(2)
 )
-
 type SqlTyp uint8
+
+type SqlReserved struct {
+	content string
+}
 
 const (
 	SqlTypCreate = SqlTyp(0)
@@ -16,6 +19,10 @@ const (
 	SqlTypUpdate     = SqlTyp(2)
 	SqlTypDelete = SqlTyp(3)
 )
+
+func Now() *SqlReserved {
+	return &SqlReserved{content: "NOW()"}
+}
 
 func Count(name string, alias ...string) string {
 	op := "COUNT(" + name + ")"
