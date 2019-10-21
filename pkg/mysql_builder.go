@@ -299,10 +299,12 @@ func (b *QueryBuilder) Query() string {
 
 func (b *QueryBuilder) UseTx(tx *sql.Tx) Builder {
 	b.tx = tx
+	b.db = nil
 	return b
 }
 
 func (b *QueryBuilder) UseDb(db *sql.DB) Builder {
+	b.tx = nil
 	b.db = db
 	return b
 }
