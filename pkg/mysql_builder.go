@@ -2,6 +2,7 @@ package gql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -18,6 +19,9 @@ type QueryBuilder struct {
 	ops     []SqlOp
 	stp     SqlOp
 	qtyp    SqlTyp
+
+	tx *sql.Tx
+	db *sql.DB
 }
 
 func (b *QueryBuilder) Fill(values ...*map[string]interface{}) Builder {
@@ -293,35 +297,42 @@ func (b *QueryBuilder) Query() string {
 	return ""
 }
 
-func (b *QueryBuilder) QueryTx(db *sql.Tx) (*sql.Rows, error) {
-	return db.Query(b.Query())
+func (b *QueryBuilder) UseTx(tx *sql.Tx) Builder {
+	b.tx = tx
+	return b
 }
-func (b *QueryBuilder) QueryDb(db *sql.DB) (*sql.Rows, error) {
-	return db.Query(b.Query())
+
+func (b *QueryBuilder) UseDb(db *sql.DB) Builder {
+	b.db = db
+	return b
 }
-func (b *QueryBuilder) QueryRowTx(db *sql.Tx, args ...interface{}) error {
-	return db.QueryRow(b.Query()).Scan(args...)
-}
-func (b *QueryBuilder) QueryRowDb(db *sql.DB, args ...interface{}) error {
-	return db.QueryRow(b.Query()).Scan(args...)
-}
-func (b *QueryBuilder) ExecTx(db *sql.Tx) (int64, int64, error) {
-	a, err := db.Exec(b.Query())
-	if err != nil {
-		return -1, 0, err
+
+func (b *QueryBuilder) QueryRows() (*sql.Rows, error) {
+	if b.db != nil {
+		return b.db.Query(b.Query())
+	}else if b.tx != nil {
+		return b.tx.Query(b.Query())
 	}
-	lid, err := a.LastInsertId()
-	if err != nil {
-		return -1, 0, err
-	}
-	rf, err := a.RowsAffected()
-	if err != nil {
-		return lid, 0, nil
-	}
-	return lid, rf, nil
+	return nil, errors.New("please specify handler")
 }
-func (b *QueryBuilder) ExecDb(db *sql.DB) (int64, int64, error) {
-	a, err := db.Exec(b.Query())
+func (b *QueryBuilder) QueryRow(args ...interface{}) error {
+	if b.db != nil {
+		return b.db.QueryRow(b.Query()).Scan(args...)
+	}else if b.tx != nil {
+		return b.tx.QueryRow(b.Query()).Scan(args...)
+	}
+	return errors.New("please specify handler")
+}
+func (b *QueryBuilder) Exec() (int64, int64, error) {
+	var a sql.Result
+	var err error
+
+	if b.db != nil {
+		a, err = b.db.Exec(b.Query())
+	}else if b.tx != nil {
+		a, err = b.tx.Exec(b.Query())
+	}
+
 	if err != nil {
 		return -1, 0, err
 	}

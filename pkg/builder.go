@@ -32,12 +32,10 @@ type Builder interface {
 	And() Builder
 	Count() Builder
 	AndNot() Builder
-
+	UseTx(tx *sql.Tx) Builder
+	UseDb(db *sql.DB) Builder
 	Query() string
-	QueryTx(tx *sql.Tx) (*sql.Rows, error)
-	QueryDb(tx *sql.DB) (*sql.Rows, error)
-	QueryRowTx(tx *sql.Tx, args...interface{}) error
-	QueryRowDb(tx *sql.DB, args...interface{}) error
-	ExecTx(tx *sql.Tx) (int64, int64, error)
-	ExecDb(tx *sql.DB) (int64, int64, error)
+	QueryRows() (*sql.Rows, error)
+	QueryRow(args...interface{}) error
+	Exec() (int64, int64, error)
 }
