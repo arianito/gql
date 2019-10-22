@@ -266,25 +266,28 @@ func (b *QueryBuilder) Query() string {
 		return strings.Trim(query, " ")
 	}
 	if b.qtyp == SqlTypCreate {
-		ok := make([]string, 0)
-		keys := ""
+		keys := make([]string, 0)
+		for key, _ := range *b.values[0] {
+			keys = append(keys, key)
+		}
+		ln := len(keys)
+
+
+		stm := make([]string, 0)
+
 		for _, item := range b.values {
-			keys = ""
 			values := ""
 			i := 0
-			ln := len(*item)
-			for key, value := range *item {
-				keys += key
-				values += interface_to_sql(value)
+			for _, key := range keys {
+				values += interface_to_sql((*item)[key])
 				if i != ln-1 {
-					keys += ", "
 					values += ", "
 				}
 				i++
 			}
-			ok = append(ok, "("+values+")")
+			stm = append(stm, "("+values+")")
 		}
-		return "INSERT INTO " + b.tables[0] + "(" + keys + ") VALUES" + strings.Join(ok, ", ")
+		return "INSERT INTO " + b.tables[0] + "(" + strings.Join(keys, ", ") + ") VALUES" + strings.Join(stm, ", ")
 	}
 
 	if b.qtyp == SqlTypUpdate {
