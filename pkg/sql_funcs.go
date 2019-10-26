@@ -7,6 +7,7 @@ const (
 	SqlOr     = SqlOp(1)
 	SqlAndNot = SqlOp(2)
 )
+
 type SqlTyp uint8
 
 type SqlReserved struct {
@@ -15,9 +16,10 @@ type SqlReserved struct {
 
 const (
 	SqlTypCreate = SqlTyp(0)
-	SqlTypRead    = SqlTyp(1)
-	SqlTypUpdate     = SqlTyp(2)
+	SqlTypRead   = SqlTyp(1)
+	SqlTypUpdate = SqlTyp(2)
 	SqlTypDelete = SqlTyp(3)
+	SqlTypTable  = SqlTyp(4)
 )
 
 func Now() SqlReserved {
@@ -52,36 +54,46 @@ func Sum(expression string, alias ...string) string {
 
 func Query(fn func(builder Builder), alias string) string {
 	b := &QueryBuilder{
-		qtyp:SqlTypRead,
+		qtyp: SqlTypRead,
 	}
 	fn(b)
 	return "(" + b.Query() + ") " + alias
 }
 
 func Read(table string) Builder {
-	q :=  QueryBuilder{}
+	q := QueryBuilder{}
 	q.qtyp = SqlTypRead
 	q.Table(table)
 	return &q
 }
 
 func Create(table string) Builder {
-	q :=  QueryBuilder{}
+	q := QueryBuilder{}
 	q.qtyp = SqlTypCreate
 	q.Table(table)
 	return &q
 }
 func Update(table string) Builder {
-	q :=  QueryBuilder{}
+	q := QueryBuilder{}
 	q.qtyp = SqlTypUpdate
 	q.Table(table)
 	return &q
 }
 func Delete(table string) Builder {
-	q :=  QueryBuilder{}
+	q := QueryBuilder{}
 	q.qtyp = SqlTypDelete
 	q.Table(table)
 	return &q
+}
+
+func Table(name string) Builder {
+	q := QueryBuilder{}
+	q.qtyp = SqlTypTable
+	q.Table(name)
+	return &q
+}
+func DropTable(name string) string {
+	return "drop table " + name
 }
 
 type OBJ map[string]interface{}

@@ -20,8 +20,8 @@ func TestMysqlBuilder(t *testing.T) {
 				"name":  "aryan",
 			},
 			&OBJ{
-				"name":  "arash",
 				"hello": 55,
+				"name":  "arash",
 			},
 		).
 		Query()
@@ -42,4 +42,10 @@ func TestMysqlBuilder(t *testing.T) {
 		Where("id", 2).
 		Query()
 	fmt.Println(d)
+	h := Table("files").
+		Field("id", "int not null primary key auto_increment").
+		Field("name", "varchar(100)").
+		ForeignKey("name", "users", "id").
+		Query()
+	fmt.Println(h)
 }

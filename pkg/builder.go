@@ -2,6 +2,14 @@ package gql
 
 import "database/sql"
 
+type FKType byte
+
+const (
+	FKNormal  = FKType(0)
+	FKCascade = FKType(1)
+	FKSetNull    = FKType(2)
+)
+
 type Builder interface {
 	Table(table string) Builder
 	Columns(columns ...string) Builder
@@ -32,10 +40,17 @@ type Builder interface {
 	And() Builder
 	Count() Builder
 	AndNot() Builder
+
+	Field(name string, attributes string) Builder
+	Unique(keys ...string) Builder
+	Index(keys ...string) Builder
+	PrimaryKey(key string) Builder
+	ForeignKey(localField string, remoteTable string, remoteField string, typ ...FKType) Builder
+
 	UseTx(tx *sql.Tx) Builder
 	UseDb(db *sql.DB) Builder
 	Query() string
 	QueryRows() (*sql.Rows, error)
-	QueryRow(args...interface{}) error
+	QueryRow(args ...interface{}) error
 	Exec() (int64, int64, error)
 }

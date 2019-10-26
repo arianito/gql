@@ -24,6 +24,38 @@ type QueryBuilder struct {
 	db *sql.DB
 }
 
+func (b *QueryBuilder) Field(name string, attributes string) Builder {
+	b.columns = append(b.columns, name + " " + attributes)
+	return b
+}
+func (b *QueryBuilder) Unique(keys ...string) Builder{
+	b.orders = append(b.orders, "UNIQUE("+strings.Join(keys, ", ")+")")
+	return b
+}
+func (b *QueryBuilder) Index(keys ...string) Builder{
+	b.orders = append(b.orders, "INDEX("+strings.Join(keys, ", ")+")")
+	return b
+}
+func (b *QueryBuilder) PrimaryKey(key string) Builder{
+	b.orders = append(b.orders, "PRIMARY KEY ("+key+")")
+
+	return b
+}
+func (b *QueryBuilder) ForeignKey(localField string, remoteTable string, remoteField string, ondelete ...FKType) Builder{
+	key := "FOREIGN KEY ("+localField+") REFERENCES " + remoteTable + " (" + remoteField + ")"
+	if len(ondelete) > 0 {
+		if ondelete[0] == FKCascade {
+			key += " ON DELETE SET NULL"
+		} else if ondelete[0] == FKSetNull {
+			key += " ON DELETE CASCADE"
+		}
+	}
+	b.orders = append(b.orders, key)
+	return b
+}
+
+
+
 func (b *QueryBuilder) Fill(values ...*OBJ) Builder {
 	b.values = values
 	return b
@@ -38,7 +70,6 @@ func (b *QueryBuilder) Count() Builder {
 	return b
 }
 func (b *QueryBuilder) Table(table string) Builder {
-
 	b.tables = append(b.tables, table)
 	return b
 }
@@ -308,6 +339,13 @@ func (b *QueryBuilder) Query() string {
 	}
 	if b.qtyp == SqlTypDelete {
 		return "DELETE FROM " + strings.Join(b.tables, ", ") + " WHERE " + b.getWhereClauses(false)
+	}
+	if b.qtyp == SqlTypTable {
+		table := "CREATE TABLE " + strings.Join(b.tables, ", ") + "(" + strings.Join(b.columns, ", ")
+		if len(b.columns) > 0 && len(b.orders) > 0 {
+			table += ", " + strings.Join(b.orders, ", ")
+		}
+		return table + ")"
 	}
 	return ""
 }
