@@ -20,6 +20,9 @@ type QueryBuilder struct {
 	stp     SqlOp
 	qtyp    SqlTyp
 
+	limit int
+	offset int
+
 	tx *sql.Tx
 	db *sql.DB
 }
@@ -293,7 +296,15 @@ func (b *QueryBuilder) Query() string {
 				groupBy += " HAVING " + b.having
 			}
 		}
-		query := "SELECT " + columns + " FROM " + strings.Join(b.tables, ", ") + joins + where + groupBy + orderBy
+		limit := ""
+		if b.limit > 0 {
+			limit = fmt.Sprintf(" LIMIT %v", b.limit)
+		}
+		offset := ""
+		if b.limit > 0 {
+			limit = fmt.Sprintf(" OFFSET %v", b.offset)
+		}
+		query := "SELECT " + columns + " FROM " + strings.Join(b.tables, ", ") + joins + where + groupBy + orderBy + limit + offset
 		return strings.Trim(query, " ")
 	}
 	if b.qtyp == SqlTypCreate {
@@ -359,6 +370,21 @@ func (b *QueryBuilder) UseTx(tx *sql.Tx) Builder {
 func (b *QueryBuilder) UseDb(db *sql.DB) Builder {
 	b.tx = nil
 	b.db = db
+	return b
+}
+
+
+
+func (b *QueryBuilder) Top(top int) Builder {
+	b.limit = top
+	return b
+}
+func (b *QueryBuilder) Offset(offset int) Builder {
+	b.offset = offset
+	return b
+}
+func (b *QueryBuilder) First() Builder {
+	b.limit = 1
 	return b
 }
 

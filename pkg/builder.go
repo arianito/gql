@@ -22,6 +22,9 @@ type Builder interface {
 	OrderBy(clause ...string) Builder
 	GroupBy(clause ...string) Builder
 	Having(fn func(b Builder)) Builder
+	Top(top int) Builder
+	Offset(offset int) Builder
+	First() Builder
 	WhereGroup(fn func(b Builder)) Builder
 	Where(clause string, value interface{}) Builder
 	Find(value interface{}) Builder
