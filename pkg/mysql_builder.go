@@ -301,8 +301,8 @@ func (b *QueryBuilder) Query() string {
 			limit = fmt.Sprintf(" LIMIT %v", b.limit)
 		}
 		offset := ""
-		if b.limit > 0 {
-			limit = fmt.Sprintf(" OFFSET %v", b.offset)
+		if b.offset > 0 {
+			offset = fmt.Sprintf(" OFFSET %v", b.offset)
 		}
 		query := "SELECT " + columns + " FROM " + strings.Join(b.tables, ", ") + joins + where + groupBy + orderBy + limit + offset
 		return strings.Trim(query, " ")
