@@ -3,7 +3,6 @@ package gql
 type FKType byte
 
 const (
-	FKNormal  = FKType(0)
 	FKCascade = FKType(1)
 	FKSetNull    = FKType(2)
 )
@@ -20,8 +19,8 @@ type Builder interface {
 	OrderBy(clause ...string) Builder
 	GroupBy(clause ...string) Builder
 	Having(fn func(b Builder)) Builder
-	Top(top int) Builder
-	Offset(offset int) Builder
+	Top(top int64) Builder
+	Offset(offset int64) Builder
 	WhereGroup(fn func(b Builder)) Builder
 	Where(clause string, value interface{}) Builder
 	Find(value interface{}) Builder
@@ -38,8 +37,8 @@ type Builder interface {
 	Fill(values ...*OBJ) Builder
 	Or() Builder
 	And() Builder
-	Count() Builder
 	AndNot() Builder
+
 
 	Field(name string, attributes string) Builder
 	Unique(keys ...string) Builder
@@ -49,11 +48,14 @@ type Builder interface {
 
 	Use(a interface{}) Builder
 	Query() string
+	Chunk(length int64, callback func(Scan func(o interface{}) Builder)) Builder
 	Scan(o interface{}) Builder
 	First(o interface{}) Builder
+	Count(count *int64) Builder
+	LastInsertionId(id *int64) Builder
+	RowsAffected(count *int64) Builder
+	GetScanLength(length *int64) Builder
+	HasValue() bool
 	Run() Builder
 	GetError() error
-	//QueryRows() (*sql.Rows, error)
-	//QueryRow(args ...interface{}) error
-	//Exec() (int64, int64, error)
 }
