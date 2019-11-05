@@ -1,7 +1,5 @@
 package gql
 
-import "database/sql"
-
 type FKType byte
 
 const (
@@ -24,7 +22,6 @@ type Builder interface {
 	Having(fn func(b Builder)) Builder
 	Top(top int) Builder
 	Offset(offset int) Builder
-	First() Builder
 	WhereGroup(fn func(b Builder)) Builder
 	Where(clause string, value interface{}) Builder
 	Find(value interface{}) Builder
@@ -50,10 +47,13 @@ type Builder interface {
 	PrimaryKey(key string) Builder
 	ForeignKey(localField string, remoteTable string, remoteField string, typ ...FKType) Builder
 
-	UseTx(tx *sql.Tx) Builder
-	UseDb(db *sql.DB) Builder
+	Use(a interface{}) Builder
 	Query() string
-	QueryRows() (*sql.Rows, error)
-	QueryRow(args ...interface{}) error
-	Exec() (int64, int64, error)
+	Scan(o interface{}) Builder
+	First(o interface{}) Builder
+	Run() Builder
+	GetError() error
+	//QueryRows() (*sql.Rows, error)
+	//QueryRow(args ...interface{}) error
+	//Exec() (int64, int64, error)
 }
