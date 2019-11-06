@@ -29,9 +29,10 @@ type QueryBuilder struct {
 	obj            interface{}
 	lastInsertedId int64
 	rowsAffected   int64
-	fln   int64
+	fln            int64
 	cursor         *sql.Rows
 	err            error
+	//
 }
 
 func (b *QueryBuilder) Field(name string, attributes string) Builder {
@@ -398,8 +399,6 @@ func (b *QueryBuilder) First(o interface{}) Builder {
 	return b.Scan(o)
 }
 
-
-
 func (b *QueryBuilder) query() (*sql.Rows, error) {
 	if b.db == nil && b.tx == nil {
 		panic("db driver not defined")
@@ -412,30 +411,39 @@ func (b *QueryBuilder) query() (*sql.Rows, error) {
 }
 
 func (b *QueryBuilder) Count(count *int64) Builder {
-	b.columns = []string{Count("*", "count")}
+	var cpy []string
+	cpy = b.columns
+	b.columns = []string{Count("*", "len")}
 	type LenObj struct {
-		Len int64
+		Len int64 `json:"len"`
 	}
 	var obj LenObj
 	b.Scan(&obj)
 	*count = obj.Len
+	b.columns = cpy
 	return b
 }
-func (b *QueryBuilder)  LastInsertionId(id *int64) Builder {
+func (b *QueryBuilder) LastInsertionId(id *int64) Builder {
 	*id = b.lastInsertedId
 	return b
 }
-func (b *QueryBuilder)  RowsAffected(count *int64) Builder {
+func (b *QueryBuilder) RowsAffected(count *int64) Builder {
 	*count = b.rowsAffected
 	return b
 }
-func (b *QueryBuilder)  GetScanLength(length *int64) Builder {
+func (b *QueryBuilder) GetScanLength(length *int64) Builder {
 	*length = b.fln
 	return b
 }
 
+func (b *QueryBuilder) Paginate(page int64, take int64) (out Builder) {
+	out = b
+	b.Top(take)
+	b.Offset(page * take)
+	return
+}
 func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
-	out  = b
+	out = b
 	tf := reflect.TypeOf(o).Elem()
 	vf := reflect.ValueOf(o).Elem()
 
@@ -444,7 +452,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 		if p := recover(); p != nil {
 			b.err = fmt.Errorf("%v", p)
 			return
-		}else if err != nil {
+		} else if err != nil {
 			b.err = err
 		}
 	}()
@@ -478,6 +486,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 			return
 		}
 
+		vf.Set(reflect.MakeSlice(tf, 0, 0))
 		b.fln = 0
 		for rows.Next() {
 			var data []string
@@ -490,7 +499,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 			}
 
 			val := reflect.New(elem)
-			el:=val.Elem()
+			el := val.Elem()
 			ifc := make([]interface{}, len(data))
 			for i, str := range data {
 				op := pairs[str]
@@ -498,9 +507,9 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 					obj := el.FieldByName(op).Addr().Interface()
 					ifc[i] =
 						obj
-				}else {
+				} else {
 					var obj interface{}
-					ifc[i] =  &obj
+					ifc[i] = &obj
 				}
 			}
 			err = rows.Scan(ifc...)
@@ -509,7 +518,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 			}
 			if stc {
 				vf.Set(reflect.Append(vf, val.Elem()))
-			}else{
+			} else {
 				vf.Set(reflect.Append(vf, val))
 			}
 			b.fln++
@@ -562,9 +571,9 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 					obj := val.FieldByName(op).Addr().Interface()
 					ifc[i] =
 						obj
-				}else {
+				} else {
 					var obj interface{}
-					ifc[i] =  &obj
+					ifc[i] = &obj
 				}
 			}
 			err = rows.Scan(ifc...)
@@ -592,30 +601,29 @@ func (b *QueryBuilder) Chunk(length int64, callback func(Scan func(o interface{}
 		callback(b.Scan)
 		var ln int64
 		b.GetScanLength(&ln)
-		if ln < 1 || b.GetError() != nil{
+		if ln < 1 || b.GetError() != nil {
 			return
 		}
 		offset += length
 	}
 }
-func (b*QueryBuilder) scan(o interface{})  {
+func (b *QueryBuilder) scan(o interface{}) {
 	b.Scan(o)
 }
-func (b*QueryBuilder) HasValue() bool  {
+func (b *QueryBuilder) HasValue() bool {
 	return b.GetError() == nil && b.fln > 0
 }
 func (b *QueryBuilder) Run() (out Builder) {
-	out  = b
+	out = b
 	var err error
 	defer func() {
 		if p := recover(); p != nil {
 			b.err = fmt.Errorf("%v, %v", err, p)
 			return
-		}else if err != nil {
+		} else if err != nil {
 			b.err = err
 		}
 	}()
-
 
 	if b.db == nil && b.tx == nil {
 		panic("db driver not defined")

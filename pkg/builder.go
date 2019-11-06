@@ -49,6 +49,7 @@ type Builder interface {
 	Use(a interface{}) Builder
 	Query() string
 	Chunk(length int64, callback func(Scan func(o interface{}) Builder)) Builder
+	Paginate(page int64, take int64) Builder
 	Scan(o interface{}) Builder
 	First(o interface{}) Builder
 	Count(count *int64) Builder
