@@ -514,7 +514,7 @@ func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builde
 		ln := vf.Len()
 		for i := 0; i < ln; i++ {
 			val := vf.Index(i)
-			if val.Kind() != reflect.Struct {
+			if val.Kind() == reflect.Ptr {
 				val = val.Elem()
 			}
 			fln := val.NumField()
@@ -548,7 +548,7 @@ func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builde
 		}
 		return
 	}
-	if vf.Kind() != reflect.Struct {
+	if vf.Kind() == reflect.Ptr {
 		vf = vf.Elem()
 	}
 	data := make(OBJ)
@@ -597,7 +597,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 	if tf.Kind() == reflect.Slice {
 		stc := true
 		elem := tf.Elem()
-		if elem.Kind() != reflect.Struct {
+		if elem.Kind() == reflect.Ptr {
 			elem = elem.Elem()
 			stc = false
 		}
@@ -663,7 +663,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 		elem := tf
 		val := vf
 
-		if elem.Kind() != reflect.Struct {
+		if elem.Kind() == reflect.Ptr {
 			elem = elem.Elem()
 			val = val.Elem()
 		}
@@ -776,7 +776,7 @@ func (b *QueryBuilder) Run() (out Builder) {
 
 	if b.obj != nil {
 		vf := reflect.ValueOf(b.obj).Elem()
-		if vf.Kind() != reflect.Struct {
+		if vf.Kind() == reflect.Ptr {
 			vf = vf.Elem()
 		}
 		ln := vf.NumField()
