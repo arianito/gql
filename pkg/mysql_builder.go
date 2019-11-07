@@ -313,9 +313,7 @@ func (b *QueryBuilder) Query() (out string) {
 		}
 		query := "SELECT " + columns + " FROM " + strings.Join(b.tables, ", ") + joins + where + groupBy + orderBy + limit + offset
 		out = strings.Trim(query, " ")
-
-	}
-	if b.typ == SqlTypCreate {
+	} else if b.typ == SqlTypCreate {
 		keys := make([]string, 0)
 		for key := range *b.values[0] {
 			keys = append(keys, key)
@@ -337,10 +335,7 @@ func (b *QueryBuilder) Query() (out string) {
 			stm = append(stm, "("+values+")")
 		}
 		out = "INSERT INTO " + b.tables[0] + "(" + strings.Join(keys, ", ") + ") VALUES" + strings.Join(stm, ", ")
-	}
-
-	if b.typ == SqlTypUpdate {
-		ok := make([]string, 0)
+	} else if b.typ == SqlTypUpdate {
 		item := b.values[0]
 		values := ""
 		i := 0
@@ -352,13 +347,21 @@ func (b *QueryBuilder) Query() (out string) {
 			}
 			i++
 		}
-		ok = append(ok, "("+values+")")
-		out = "UPDATE " + strings.Join(b.tables, ", ") + " SET " + values + " WHERE " + b.getWhereClauses(false)
-	}
-	if b.typ == SqlTypDelete {
+
+		where := ""
+		if len(b.wheres) > 0 {
+			where = " WHERE 1 " + b.getWhereClauses(true)
+		}
+
+		set := ""
+		if len(b.values) > 0 {
+			set = " SET " + values
+		}
+
+		out = "UPDATE " + strings.Join(b.tables, ", ") + set + where
+	} else if b.typ == SqlTypDelete {
 		out = "DELETE FROM " + strings.Join(b.tables, ", ") + " WHERE " + b.getWhereClauses(false)
-	}
-	if b.typ == SqlTypTable {
+	} else if b.typ == SqlTypTable {
 		table := "CREATE TABLE " + strings.Join(b.tables, ", ") + "(" + strings.Join(b.columns, ", ")
 		if len(b.columns) > 0 && len(b.orders) > 0 {
 			table += ", " + strings.Join(b.orders, ", ")
@@ -442,10 +445,56 @@ func (b *QueryBuilder) Paginate(page int64, take int64) (out Builder) {
 	b.Offset(page * take)
 	return
 }
-func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
+func (b *QueryBuilder) Set(key string, value interface{}) (out Builder) {
 	out = b
-	tf := reflect.TypeOf(o).Elem()
-	vf := reflect.ValueOf(o).Elem()
+	for _, value := range b.values {
+		(*value)[key] = value
+	}
+	return
+}
+func some(stack []string, check func(key string) bool) bool {
+	for _, key := range stack {
+		if check(key) {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *QueryBuilder) Bind(o interface{}) (out Builder) {
+	out = b
+	b.bind(0, o)
+	return
+}
+
+func (b *QueryBuilder) BindOnly(o interface{}, keys ...string) (out Builder) {
+	out = b
+	b.bind(1, o, keys...)
+	return
+}
+
+func (b *QueryBuilder) BindExclude(o interface{}, keys ...string) (out Builder) {
+	out = b
+	b.bind(2, o, keys...)
+	return
+}
+
+
+func checkEqual(field reflect.StructField, name string) bool {
+	tag := field.Tag.Get("gql")
+	if tag != name {
+		jsn := field.Tag.Get("json")
+		if jsn != name {
+			if strings.ToLower(name) != strings.ToLower(field.Name) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builder) {
+	out = b
 
 	var err error
 	defer func() {
@@ -456,6 +505,93 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 			b.err = err
 		}
 	}()
+
+	vf := reflect.ValueOf(o).Elem()
+
+	if vf.Kind() == reflect.Slice {
+		b.values = make([]*OBJ, 0)
+		ln := vf.Len()
+		for i := 0; i < ln; i++ {
+			val := vf.Index(i)
+			if val.Kind() != reflect.Struct {
+				val = val.Elem()
+			}
+			fln := val.NumField()
+			data := make(OBJ)
+			for j := 0; j < fln; j++ {
+				value := val.Field(j)
+				field := val.Type().Field(j)
+				tag := field.Tag.Get("gql")
+
+
+				allow := true
+
+				if mode == 1 { // only
+					allow = some(keys, func(key string) bool {
+						return checkEqual(field, key)
+					})
+				}else if mode == 2 { // exclude
+					allow = !some(keys, func(key string) bool {
+						return checkEqual(field, key)
+					})
+				}
+
+				if tag != "-" && tag != "" && allow {
+					if value.CanInterface() {
+						data[tag] = value.Interface()
+
+					}
+				}
+			}
+			b.values = append(b.values, &data)
+		}
+		return
+	}
+	if vf.Kind() != reflect.Struct {
+		vf = vf.Elem()
+	}
+	data := make(OBJ)
+	ln := vf.NumField()
+	for i := 0; i < ln; i++ {
+		field := vf.Type().Field(i)
+		value := vf.Field(i)
+		tag := field.Tag.Get("gql")
+
+		allow := true
+
+		if mode == 1 { // only
+			allow = some(keys, func(key string) bool {
+				return checkEqual(field, key)
+			})
+		}else if mode == 2 { // exclude
+			allow = !some(keys, func(key string) bool {
+				return checkEqual(field, key)
+			})
+		}
+
+		if tag != "-" && tag != "" && allow {
+			if value.CanInterface() {
+				data[tag] = value.Interface()
+			}
+		}
+	}
+	b.values = []*OBJ{&data}
+	return
+}
+func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
+	out = b
+	var err error
+	defer func() {
+		if p := recover(); p != nil {
+			b.err = fmt.Errorf("%v", p)
+			return
+		} else if err != nil {
+			b.err = err
+		}
+	}()
+
+	tf := reflect.TypeOf(o).Elem()
+	vf := reflect.ValueOf(o).Elem()
 
 	if tf.Kind() == reflect.Slice {
 		stc := true
@@ -618,7 +754,7 @@ func (b *QueryBuilder) Run() (out Builder) {
 	var err error
 	defer func() {
 		if p := recover(); p != nil {
-			b.err = fmt.Errorf("%v, %v", err, p)
+			b.err = fmt.Errorf("%v", p)
 			return
 		} else if err != nil {
 			b.err = err

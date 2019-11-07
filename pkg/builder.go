@@ -34,11 +34,15 @@ type Builder interface {
 	WhereBetween(clause string, value1 interface{}, value2 interface{}) Builder
 	WhereIn(field string, value []interface{}) Builder
 	WhereInQuery(field string, fn func(b Builder)) Builder
-	Fill(values ...*OBJ) Builder
 	Or() Builder
 	And() Builder
 	AndNot() Builder
 
+	Fill(values ...*OBJ) Builder
+	Set(key string, value interface{}) Builder
+	Bind(o interface{}) Builder
+	BindExclude(o interface{}, keys ...string) Builder
+	BindOnly(o interface{}, keys ...string) Builder
 
 	Field(name string, attributes string) Builder
 	Unique(keys ...string) Builder
