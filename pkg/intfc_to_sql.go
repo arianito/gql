@@ -19,6 +19,7 @@ func interface_to_sql(value interface{}) (out string) {
 	}()
 	if value == nil {
 		out =  "NULL"
+		return
 	}
 	switch value.(type) {
 	case string:
