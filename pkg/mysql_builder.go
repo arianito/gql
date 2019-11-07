@@ -495,6 +495,7 @@ func checkEqual(field reflect.StructField, name string) bool {
 
 func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builder) {
 	out = b
+	b.obj = o
 
 	var err error
 	defer func() {
@@ -776,6 +777,22 @@ func (b *QueryBuilder) Run() (out Builder) {
 		return
 	}
 	b.lastInsertedId, err = a.LastInsertId()
+
+	if b.obj != nil {
+		vf := reflect.ValueOf(b.obj).Elem()
+		if vf.Kind() != reflect.Struct {
+			vf = vf.Elem()
+		}
+		ln := vf.NumField()
+		for i:=0;i<ln;i++ {
+			val := vf.Field(i)
+			tags := vf.Type().Field(i).Tag
+			if tags.Get("gql") == "id" || tags.Get("pk") == "true" {
+				val.Set(reflect.ValueOf(b.lastInsertedId))
+				break
+			}
+		}
+	}
 	if err != nil {
 		return
 	}
