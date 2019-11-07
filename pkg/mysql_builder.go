@@ -2,13 +2,14 @@ package gql
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
+	"log"
+	"reflect"
 	"strings"
 )
 
 type QueryBuilder struct {
-	values []*OBJ
+	values  []*OBJ
 	tables  []string
 	columns []string
 	wheres  []string
@@ -18,46 +19,51 @@ type QueryBuilder struct {
 	having  string
 	ops     []SqlOp
 	stp     SqlOp
-	qtyp    SqlTyp
+	typ     SqlTyp
 
-	limit int
-	offset int
-
-	tx *sql.Tx
-	db *sql.DB
+	limit  int64
+	offset int64
+	tx     *sql.Tx
+	db     *sql.DB
+	//
+	obj            interface{}
+	lastInsertedId int64
+	rowsAffected   int64
+	fln            int64
+	cursor         *sql.Rows
+	err            error
+	//
 }
 
 func (b *QueryBuilder) Field(name string, attributes string) Builder {
-	b.columns = append(b.columns, name + " " + attributes)
+	b.columns = append(b.columns, name+" "+attributes)
 	return b
 }
-func (b *QueryBuilder) Unique(keys ...string) Builder{
+func (b *QueryBuilder) Unique(keys ...string) Builder {
 	b.orders = append(b.orders, "UNIQUE("+strings.Join(keys, ", ")+")")
 	return b
 }
-func (b *QueryBuilder) Index(keys ...string) Builder{
+func (b *QueryBuilder) Index(keys ...string) Builder {
 	b.orders = append(b.orders, "INDEX("+strings.Join(keys, ", ")+")")
 	return b
 }
-func (b *QueryBuilder) PrimaryKey(key string) Builder{
+func (b *QueryBuilder) PrimaryKey(key string) Builder {
 	b.orders = append(b.orders, "PRIMARY KEY ("+key+")")
 
 	return b
 }
-func (b *QueryBuilder) ForeignKey(localField string, remoteTable string, remoteField string, ondelete ...FKType) Builder{
-	key := "FOREIGN KEY ("+localField+") REFERENCES " + remoteTable + " (" + remoteField + ")"
-	if len(ondelete) > 0 {
-		if ondelete[0] == FKCascade {
+func (b *QueryBuilder) ForeignKey(localField string, remoteTable string, remoteField string, onDelete ...FKType) Builder {
+	key := "FOREIGN KEY (" + localField + ") REFERENCES " + remoteTable + " (" + remoteField + ")"
+	if len(onDelete) > 0 {
+		if onDelete[0] == FKCascade {
 			key += " ON DELETE SET NULL"
-		} else if ondelete[0] == FKSetNull {
+		} else if onDelete[0] == FKSetNull {
 			key += " ON DELETE CASCADE"
 		}
 	}
 	b.orders = append(b.orders, key)
 	return b
 }
-
-
 
 func (b *QueryBuilder) Fill(values ...*OBJ) Builder {
 	b.values = values
@@ -68,10 +74,6 @@ func (b *QueryBuilder) Columns(columns ...string) Builder {
 	b.columns = append(b.columns, columns...)
 	return b
 }
-func (b *QueryBuilder) Count() Builder {
-	b.columns = []string{Count("*", "count")}
-	return b
-}
 func (b *QueryBuilder) Table(table string) Builder {
 	b.tables = append(b.tables, table)
 	return b
@@ -79,7 +81,7 @@ func (b *QueryBuilder) Table(table string) Builder {
 
 func (b *QueryBuilder) Join(table string, condition string, fn ...func(b Builder)) Builder {
 	bld := &QueryBuilder{
-		qtyp:SqlTypRead,
+		typ: SqlTypRead,
 	}
 	if len(fn) > 0 {
 		fn[0](bld)
@@ -91,7 +93,7 @@ func (b *QueryBuilder) Join(table string, condition string, fn ...func(b Builder
 
 func (b *QueryBuilder) LeftJoin(table string, condition string, fn ...func(b Builder)) Builder {
 	bld := &QueryBuilder{
-		qtyp:SqlTypRead,
+		typ: SqlTypRead,
 	}
 	if len(fn) > 0 {
 		fn[0](bld)
@@ -103,7 +105,7 @@ func (b *QueryBuilder) LeftJoin(table string, condition string, fn ...func(b Bui
 
 func (b *QueryBuilder) RightJoin(table string, condition string, fn ...func(b Builder)) Builder {
 	bld := &QueryBuilder{
-		qtyp:SqlTypRead,
+		typ: SqlTypRead,
 	}
 	if len(fn) > 0 {
 		fn[0](bld)
@@ -142,7 +144,7 @@ func (b *QueryBuilder) GroupBy(clause ...string) Builder {
 }
 func (b *QueryBuilder) Having(fn func(b Builder)) Builder {
 	bld := &QueryBuilder{
-		qtyp:SqlTypRead,
+		typ: SqlTypRead,
 	}
 	fn(bld)
 	b.having = bld.getWhereClauses(false)
@@ -214,7 +216,7 @@ func (b *QueryBuilder) WhereIn(field string, value []interface{}) Builder {
 func (b *QueryBuilder) WhereInQuery(field string, fn func(b Builder)) Builder {
 	b.ops = append(b.ops, b.stp)
 	bld := &QueryBuilder{
-		qtyp:SqlTypRead,
+		typ: SqlTypRead,
 	}
 	fn(bld)
 	b.wheres = append(b.wheres, fmt.Sprintf("%s IN (%s)", field, bld.Query()))
@@ -223,7 +225,7 @@ func (b *QueryBuilder) WhereInQuery(field string, fn func(b Builder)) Builder {
 
 func (b *QueryBuilder) WhereGroup(fn func(b Builder)) Builder {
 	builder := &QueryBuilder{
-		qtyp:SqlTypRead,
+		typ: SqlTypRead,
 	}
 	fn(builder)
 	b.wheres = append(b.wheres, fmt.Sprintf("(%s)", builder.getWhereClauses(false)))
@@ -271,8 +273,13 @@ func (b *QueryBuilder) getWhereClauses(flag bool) string {
 	return where
 }
 
-func (b *QueryBuilder) Query() string {
-	if b.qtyp == SqlTypRead {
+func (b *QueryBuilder) Query() (out string) {
+	if enableLog {
+		defer func() {
+			log.Println(out)
+		}()
+	}
+	if b.typ == SqlTypRead {
 		columns := "*"
 		if len(b.columns) > 0 {
 			columns = strings.Join(b.columns, ", ")
@@ -305,15 +312,15 @@ func (b *QueryBuilder) Query() string {
 			offset = fmt.Sprintf(" OFFSET %v", b.offset)
 		}
 		query := "SELECT " + columns + " FROM " + strings.Join(b.tables, ", ") + joins + where + groupBy + orderBy + limit + offset
-		return strings.Trim(query, " ")
+		out = strings.Trim(query, " ")
+
 	}
-	if b.qtyp == SqlTypCreate {
+	if b.typ == SqlTypCreate {
 		keys := make([]string, 0)
-		for key, _ := range *b.values[0] {
+		for key := range *b.values[0] {
 			keys = append(keys, key)
 		}
 		ln := len(keys)
-
 
 		stm := make([]string, 0)
 
@@ -329,10 +336,10 @@ func (b *QueryBuilder) Query() string {
 			}
 			stm = append(stm, "("+values+")")
 		}
-		return "INSERT INTO " + b.tables[0] + "(" + strings.Join(keys, ", ") + ") VALUES" + strings.Join(stm, ", ")
+		out = "INSERT INTO " + b.tables[0] + "(" + strings.Join(keys, ", ") + ") VALUES" + strings.Join(stm, ", ")
 	}
 
-	if b.qtyp == SqlTypUpdate {
+	if b.typ == SqlTypUpdate {
 		ok := make([]string, 0)
 		item := b.values[0]
 		values := ""
@@ -346,84 +353,296 @@ func (b *QueryBuilder) Query() string {
 			i++
 		}
 		ok = append(ok, "("+values+")")
-		return "UPDATE " + strings.Join(b.tables, ", ") + " SET " + values+ " WHERE " + b.getWhereClauses(false)
+		out = "UPDATE " + strings.Join(b.tables, ", ") + " SET " + values + " WHERE " + b.getWhereClauses(false)
 	}
-	if b.qtyp == SqlTypDelete {
-		return "DELETE FROM " + strings.Join(b.tables, ", ") + " WHERE " + b.getWhereClauses(false)
+	if b.typ == SqlTypDelete {
+		out = "DELETE FROM " + strings.Join(b.tables, ", ") + " WHERE " + b.getWhereClauses(false)
 	}
-	if b.qtyp == SqlTypTable {
+	if b.typ == SqlTypTable {
 		table := "CREATE TABLE " + strings.Join(b.tables, ", ") + "(" + strings.Join(b.columns, ", ")
 		if len(b.columns) > 0 && len(b.orders) > 0 {
 			table += ", " + strings.Join(b.orders, ", ")
 		}
-		return table + ")"
+		out = table + ")"
 	}
-	return ""
+	return
 }
 
-func (b *QueryBuilder) UseTx(tx *sql.Tx) Builder {
-	b.tx = tx
-	b.db = nil
+func (b *QueryBuilder) Use(a interface{}) Builder {
+	tx, ok := a.(*sql.Tx)
+	if ok {
+		b.tx = tx
+		b.db = nil
+	} else {
+		db, ok := a.(*sql.DB)
+		if ok {
+			b.tx = nil
+			b.db = db
+		} else {
+			panic("wrong db provider used")
+		}
+	}
 	return b
 }
 
-func (b *QueryBuilder) UseDb(db *sql.DB) Builder {
-	b.tx = nil
-	b.db = db
-	return b
-}
-
-
-
-func (b *QueryBuilder) Top(top int) Builder {
+func (b *QueryBuilder) Top(top int64) Builder {
 	b.limit = top
 	return b
 }
-func (b *QueryBuilder) Offset(offset int) Builder {
+func (b *QueryBuilder) Offset(offset int64) Builder {
 	b.offset = offset
 	return b
 }
-func (b *QueryBuilder) First() Builder {
+
+func (b *QueryBuilder) First(o interface{}) Builder {
 	b.limit = 1
+	return b.Scan(o)
+}
+
+func (b *QueryBuilder) query() (*sql.Rows, error) {
+	if b.db == nil && b.tx == nil {
+		panic("db driver not defined")
+	}
+	if b.db != nil {
+		return b.db.Query(b.Query())
+	} else {
+		return b.tx.Query(b.Query())
+	}
+}
+
+func (b *QueryBuilder) Count(count *int64) Builder {
+	var cpy []string
+	cpy = b.columns
+	b.columns = []string{Count("*", "len")}
+	type LenObj struct {
+		Len int64 `json:"len"`
+	}
+	var obj LenObj
+	b.Scan(&obj)
+	*count = obj.Len
+	b.columns = cpy
+	return b
+}
+func (b *QueryBuilder) LastInsertionId(id *int64) Builder {
+	*id = b.lastInsertedId
+	return b
+}
+func (b *QueryBuilder) RowsAffected(count *int64) Builder {
+	*count = b.rowsAffected
+	return b
+}
+func (b *QueryBuilder) GetScanLength(length *int64) Builder {
+	*length = b.fln
 	return b
 }
 
-func (b *QueryBuilder) QueryRows() (*sql.Rows, error) {
-	if b.db != nil {
-		return b.db.Query(b.Query())
-	}else if b.tx != nil {
-		return b.tx.Query(b.Query())
-	}
-	return nil, errors.New("please specify handler")
+func (b *QueryBuilder) Paginate(page int64, take int64) (out Builder) {
+	out = b
+	b.Top(take)
+	b.Offset(page * take)
+	return
 }
-func (b *QueryBuilder) QueryRow(args ...interface{}) error {
-	if b.db != nil {
-		return b.db.QueryRow(b.Query()).Scan(args...)
-	}else if b.tx != nil {
-		return b.tx.QueryRow(b.Query()).Scan(args...)
-	}
-	return errors.New("please specify handler")
-}
-func (b *QueryBuilder) Exec() (int64, int64, error) {
-	var a sql.Result
+func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
+	out = b
+	tf := reflect.TypeOf(o).Elem()
+	vf := reflect.ValueOf(o).Elem()
+
 	var err error
+	defer func() {
+		if p := recover(); p != nil {
+			b.err = fmt.Errorf("%v", p)
+			return
+		} else if err != nil {
+			b.err = err
+		}
+	}()
+
+	if tf.Kind() == reflect.Slice {
+		stc := true
+		elem := tf.Elem()
+		if elem.Kind() != reflect.Struct {
+			elem = elem.Elem()
+			stc = false
+		}
+		pairs := make(map[string]string)
+		ln := elem.NumField()
+		for i := 0; i < ln; i++ {
+			field := elem.Field(i)
+			tag := field.Tag.Get("gql")
+			if tag != "-" {
+				if tag == "" {
+					tag = field.Tag.Get("json")
+				}
+
+				if tag != "" {
+					pairs[tag] = field.Name
+				}
+
+			}
+		}
+		var rows *sql.Rows
+		rows, err = b.query()
+		if err != nil {
+			return
+		}
+
+		vf.Set(reflect.MakeSlice(tf, 0, 0))
+		b.fln = 0
+		for rows.Next() {
+			var data []string
+			data, err = rows.Columns()
+			if err != nil {
+				if err := rows.Close(); err != nil {
+					panic(err)
+				}
+				return
+			}
+
+			val := reflect.New(elem)
+			el := val.Elem()
+			ifc := make([]interface{}, len(data))
+			for i, str := range data {
+				op := pairs[str]
+				if op != "" {
+					obj := el.FieldByName(op).Addr().Interface()
+					ifc[i] =
+						obj
+				} else {
+					var obj interface{}
+					ifc[i] = &obj
+				}
+			}
+			err = rows.Scan(ifc...)
+			if err != nil {
+				return
+			}
+			if stc {
+				vf.Set(reflect.Append(vf, val.Elem()))
+			} else {
+				vf.Set(reflect.Append(vf, val))
+			}
+			b.fln++
+		}
+
+	} else {
+		elem := tf
+		val := vf
+
+		if elem.Kind() != reflect.Struct {
+			elem = elem.Elem()
+			val = val.Elem()
+		}
+
+		pairs := make(map[string]string)
+		ln := elem.NumField()
+		for i := 0; i < ln; i++ {
+			field := elem.Field(i)
+			tag := field.Tag.Get("gql")
+			if tag != "-" {
+				if tag == "" {
+					tag = field.Tag.Get("json")
+				}
+
+				if tag != "" {
+					pairs[tag] = field.Name
+				}
+
+			}
+		}
+		var rows *sql.Rows
+		rows, err = b.query()
+		if err != nil {
+			return
+		}
+		b.fln = 0
+		for rows.Next() {
+			var data []string
+			data, err = rows.Columns()
+			if err != nil {
+				if err := rows.Close(); err != nil {
+					panic(err)
+				}
+				return
+			}
+			ifc := make([]interface{}, len(data))
+			for i, str := range data {
+				op := pairs[str]
+				if op != "" {
+					obj := val.FieldByName(op).Addr().Interface()
+					ifc[i] =
+						obj
+				} else {
+					var obj interface{}
+					ifc[i] = &obj
+				}
+			}
+			err = rows.Scan(ifc...)
+			if err != nil {
+				return
+			}
+			b.fln++
+
+			return
+		}
+	}
+	return
+}
+
+func (b *QueryBuilder) GetError() error {
+	return b.err
+}
+
+func (b *QueryBuilder) Chunk(length int64, callback func(Scan func(o interface{}) Builder)) (out Builder) {
+	out = b
+	var offset int64 = 0
+	for {
+		b.Top(length)
+		b.Offset(offset)
+		callback(b.Scan)
+		var ln int64
+		b.GetScanLength(&ln)
+		if ln < 1 || b.GetError() != nil {
+			return
+		}
+		offset += length
+	}
+}
+func (b *QueryBuilder) scan(o interface{}) {
+	b.Scan(o)
+}
+func (b *QueryBuilder) HasValue() bool {
+	return b.GetError() == nil && b.fln > 0
+}
+func (b *QueryBuilder) Run() (out Builder) {
+	out = b
+	var err error
+	defer func() {
+		if p := recover(); p != nil {
+			b.err = fmt.Errorf("%v, %v", err, p)
+			return
+		} else if err != nil {
+			b.err = err
+		}
+	}()
+
+	if b.db == nil && b.tx == nil {
+		panic("db driver not defined")
+	}
+
+	var a sql.Result
 
 	if b.db != nil {
 		a, err = b.db.Exec(b.Query())
-	}else if b.tx != nil {
+	} else {
 		a, err = b.tx.Exec(b.Query())
 	}
-
 	if err != nil {
-		return -1, 0, err
+		return
 	}
-	lid, err := a.LastInsertId()
+	b.lastInsertedId, err = a.LastInsertId()
 	if err != nil {
-		return -1, 0, err
+		return
 	}
-	rf, err := a.RowsAffected()
-	if err != nil {
-		return lid, 0, nil
-	}
-	return lid, rf, nil
+	b.rowsAffected, err = a.RowsAffected()
+	return
 }

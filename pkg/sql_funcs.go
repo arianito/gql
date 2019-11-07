@@ -54,7 +54,7 @@ func Sum(expression string, alias ...string) string {
 
 func Query(fn func(builder Builder), alias string) string {
 	b := &QueryBuilder{
-		qtyp: SqlTypRead,
+		typ: SqlTypRead,
 	}
 	fn(b)
 	return "(" + b.Query() + ") " + alias
@@ -62,33 +62,33 @@ func Query(fn func(builder Builder), alias string) string {
 
 func Read(table string) Builder {
 	q := QueryBuilder{}
-	q.qtyp = SqlTypRead
+	q.typ = SqlTypRead
 	q.Table(table)
 	return &q
 }
 
 func Create(table string) Builder {
 	q := QueryBuilder{}
-	q.qtyp = SqlTypCreate
+	q.typ = SqlTypCreate
 	q.Table(table)
 	return &q
 }
 func Update(table string) Builder {
 	q := QueryBuilder{}
-	q.qtyp = SqlTypUpdate
+	q.typ = SqlTypUpdate
 	q.Table(table)
 	return &q
 }
 func Delete(table string) Builder {
 	q := QueryBuilder{}
-	q.qtyp = SqlTypDelete
+	q.typ = SqlTypDelete
 	q.Table(table)
 	return &q
 }
 
 func Table(name string) Builder {
 	q := QueryBuilder{}
-	q.qtyp = SqlTypTable
+	q.typ = SqlTypTable
 	q.Table(name)
 	return &q
 }
