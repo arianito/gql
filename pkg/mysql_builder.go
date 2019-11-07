@@ -629,9 +629,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 			var data []string
 			data, err = rows.Columns()
 			if err != nil {
-				if err := rows.Close(); err != nil {
-					panic(err)
-				}
+				rows.Close()
 				return
 			}
 
@@ -696,9 +694,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 			var data []string
 			data, err = rows.Columns()
 			if err != nil {
-				if err := rows.Close(); err != nil {
-					panic(err)
-				}
+				rows.Close()
 				return
 			}
 			ifc := make([]interface{}, len(data))
@@ -718,7 +714,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 				return
 			}
 			b.fln++
-
+			rows.Close()
 			return
 		}
 	}
