@@ -19,7 +19,6 @@ const (
 	SqlTypRead   = SqlTyp(1)
 	SqlTypUpdate = SqlTyp(2)
 	SqlTypDelete = SqlTyp(3)
-	SqlTypTable  = SqlTyp(4)
 )
 
 func Now() SqlReserved {
@@ -84,16 +83,6 @@ func Delete(table string) Builder {
 	q.typ = SqlTypDelete
 	q.Table(table)
 	return &q
-}
-
-func Table(name string) Builder {
-	q := QueryBuilder{}
-	q.typ = SqlTypTable
-	q.Table(name)
-	return &q
-}
-func DropTable(name string) string {
-	return "drop table " + name
 }
 
 type OBJ map[string]interface{}

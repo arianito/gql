@@ -1,12 +1,5 @@
 package gql
 
-type FKType byte
-
-const (
-	FKCascade = FKType(1)
-	FKSetNull    = FKType(2)
-)
-
 type Builder interface {
 	Table(table string) Builder
 	Columns(columns ...string) Builder
@@ -37,19 +30,12 @@ type Builder interface {
 	Or() Builder
 	And() Builder
 	AndNot() Builder
-
 	Fill(values ...*OBJ) Builder
 	Set(key string, value interface{}) Builder
 	Bind(o interface{}) Builder
 	BindExclude(o interface{}, keys ...string) Builder
 	BindOnly(o interface{}, keys ...string) Builder
-
-	Field(name string, attributes string) Builder
-	Unique(keys ...string) Builder
-	Index(keys ...string) Builder
-	PrimaryKey(key string) Builder
-	ForeignKey(localField string, remoteTable string, remoteField string, typ ...FKType) Builder
-
+	Field(name string) SqlReserved
 	Use(a interface{}) Builder
 	Query() string
 	Chunk(length int64, callback func(Scan func(o interface{}) Builder)) Builder

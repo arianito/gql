@@ -27,51 +27,48 @@ type QueryBuilder struct {
 	db     *sql.DB
 	//
 	obj            interface{}
+	fldTag         map[string]string
 	lastInsertedId int64
 	rowsAffected   int64
 	fln            int64
 	cursor         *sql.Rows
 	err            error
+	structFields   map[string]int
 	//
 }
 
-func (b *QueryBuilder) Field(name string, attributes string) Builder {
-	b.columns = append(b.columns, name+" "+attributes)
-	return b
-}
-func (b *QueryBuilder) Unique(keys ...string) Builder {
-	b.orders = append(b.orders, "UNIQUE("+strings.Join(keys, ", ")+")")
-	return b
-}
-func (b *QueryBuilder) Index(keys ...string) Builder {
-	b.orders = append(b.orders, "INDEX("+strings.Join(keys, ", ")+")")
-	return b
-}
-func (b *QueryBuilder) PrimaryKey(key string) Builder {
-	b.orders = append(b.orders, "PRIMARY KEY ("+key+")")
-
-	return b
-}
-func (b *QueryBuilder) ForeignKey(localField string, remoteTable string, remoteField string, onDelete ...FKType) Builder {
-	key := "FOREIGN KEY (" + localField + ") REFERENCES " + remoteTable + " (" + remoteField + ")"
-	if len(onDelete) > 0 {
-		if onDelete[0] == FKCascade {
-			key += " ON DELETE SET NULL"
-		} else if onDelete[0] == FKSetNull {
-			key += " ON DELETE CASCADE"
+func (b *QueryBuilder) extractName(name string) string {
+	if name[0] == '(' || b.obj == nil || b.fldTag == nil {
+		return name
+	}
+	spl := strings.Split(name, ".")
+	if len(spl) == 1 {
+		spl[0] = strings.Trim(spl[0], " `")
+		if val, ok := b.fldTag[spl[0]]; ok {
+			return val
+		}
+	} else {
+		spl[0] = strings.Trim(spl[0], " `")
+		spl[1] = strings.Trim(spl[1], " `")
+		if val, ok := b.fldTag[spl[1]]; ok {
+			return spl[0] + "." + val
 		}
 	}
-	b.orders = append(b.orders, key)
-	return b
+	return name
 }
 
+func (b *QueryBuilder) Field(name string) SqlReserved {
+	return Sql(b.extractName(name))
+}
 func (b *QueryBuilder) Fill(values ...*OBJ) Builder {
 	b.values = values
 	return b
 }
 
 func (b *QueryBuilder) Columns(columns ...string) Builder {
-	b.columns = append(b.columns, columns...)
+	for _, column := range columns {
+		b.columns = append(b.columns, b.extractName(column))
+	}
 	return b
 }
 func (b *QueryBuilder) Table(table string) Builder {
@@ -116,20 +113,20 @@ func (b *QueryBuilder) RightJoin(table string, condition string, fn ...func(b Bu
 }
 
 func (b *QueryBuilder) JoinUsing(table string, using string) Builder {
-	join := "JOIN " + table + " USING(" + using + ")"
+	join := "JOIN " + table + " USING(" + b.extractName(using) + ")"
 	b.joins = append(b.joins, join)
 	return b
 }
 
 func (b *QueryBuilder) BitwiseAnd(field string, with int64, value int64) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s & %v = %v", field, with, value))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s & %v = %v", b.extractName(field), with, value))
 	return b
 }
 
 func (b *QueryBuilder) BitwiseOr(field string, with int64, value int64) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s | %v = %v", field, with, value))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s | %v = %v", b.extractName(field), with, value))
 	return b
 }
 
@@ -153,63 +150,63 @@ func (b *QueryBuilder) Having(fn func(b Builder)) Builder {
 
 func (b *QueryBuilder) Where(field string, value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s = %s", field, interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s = %s", b.extractName(field), Convert(value)))
 	return b
 }
 func (b *QueryBuilder) Find(value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("id = %s", interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s = %s", b.extractName("id"), Convert(value)))
 	return b
 }
 func (b *QueryBuilder) WhereNot(field string, value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s != %s", field, interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s != %s", b.extractName(field), Convert(value)))
 	return b
 }
 
 func (b *QueryBuilder) WhereNull(field string) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s IS NULL", field))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s IS NULL", b.extractName(field)))
 	return b
 }
 
 func (b *QueryBuilder) WhereNotNull(field string) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s IS NOT NULL", field))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s IS NOT NULL", b.extractName(field)))
 	return b
 }
 
 func (b *QueryBuilder) WhereBetween(field string, value1 interface{}, value2 interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s BETWEEN %s AND %s", field, interface_to_sql(value1), interface_to_sql(value2)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s BETWEEN %s AND %s", b.extractName(field), Convert(value1), Convert(value2)))
 	return b
 }
 
 func (b *QueryBuilder) WhereGT(field string, value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s > %s", field, interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s > %s", b.extractName(field), Convert(value)))
 	return b
 }
 func (b *QueryBuilder) WhereGTE(field string, value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s >= %s", field, interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s >= %s", b.extractName(field), Convert(value)))
 	return b
 }
 
 func (b *QueryBuilder) WhereLT(field string, value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s < %s", field, interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s < %s", b.extractName(field), Convert(value)))
 	return b
 }
 func (b *QueryBuilder) WhereLTE(field string, value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s <= %s", field, interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s <= %s", b.extractName(field), Convert(value)))
 	return b
 }
 
 func (b *QueryBuilder) WhereIn(field string, value []interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s in %s", field, interface_to_sql(value)))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s in %s", b.extractName(field), Convert(value)))
 	return b
 }
 
@@ -219,7 +216,7 @@ func (b *QueryBuilder) WhereInQuery(field string, fn func(b Builder)) Builder {
 		typ: SqlTypRead,
 	}
 	fn(bld)
-	b.wheres = append(b.wheres, fmt.Sprintf("%s IN (%s)", field, bld.Query()))
+	b.wheres = append(b.wheres, fmt.Sprintf("%s IN (%s)", b.extractName(field), bld.Query()))
 	return b
 }
 
@@ -326,7 +323,8 @@ func (b *QueryBuilder) Query() (out string) {
 			values := ""
 			i := 0
 			for _, key := range keys {
-				values += interface_to_sql((*item)[key])
+				itm := (*item)[key]
+				values += Convert(itm)
 				if i != ln-1 {
 					values += ", "
 				}
@@ -341,7 +339,7 @@ func (b *QueryBuilder) Query() (out string) {
 		i := 0
 		ln := len(*item)
 		for key, value := range *item {
-			values += key + "=" + interface_to_sql(value)
+			values += key + "=" + Convert(value)
 			if i != ln-1 {
 				values += ", "
 			}
@@ -361,12 +359,6 @@ func (b *QueryBuilder) Query() (out string) {
 		out = "UPDATE " + strings.Join(b.tables, ", ") + set + where
 	} else if b.typ == SqlTypDelete {
 		out = "DELETE FROM " + strings.Join(b.tables, ", ") + " WHERE " + b.getWhereClauses(false)
-	} else if b.typ == SqlTypTable {
-		table := "CREATE TABLE " + strings.Join(b.tables, ", ") + "(" + strings.Join(b.columns, ", ")
-		if len(b.columns) > 0 && len(b.orders) > 0 {
-			table += ", " + strings.Join(b.orders, ", ")
-		}
-		out = table + ")"
 	}
 	return
 }
@@ -445,10 +437,13 @@ func (b *QueryBuilder) Paginate(page int64, take int64) (out Builder) {
 	b.Offset(page * take)
 	return
 }
-func (b *QueryBuilder) Set(key string, value interface{}) (out Builder) {
+func (b *QueryBuilder) Set(key string, val interface{}) (out Builder) {
 	out = b
+	if len(b.values) == 0 {
+		b.values = []*OBJ{{}}
+	}
 	for _, value := range b.values {
-		(*value)[key] = value
+		(*value)[b.extractName(key)] = val
 	}
 	return
 }
@@ -479,13 +474,11 @@ func (b *QueryBuilder) BindExclude(o interface{}, keys ...string) (out Builder) 
 	return
 }
 
-
-func checkEqual(field reflect.StructField, name string) bool {
-	tag := field.Tag.Get("gql")
+func checkEqual(tag, json, fieldName, name string) bool {
 	if tag != name {
-		jsn := field.Tag.Get("json")
+		jsn := json
 		if jsn != name {
-			if strings.ToLower(name) != strings.ToLower(field.Name) {
+			if strings.ToLower(name) != fieldName {
 				return false
 			}
 		}
@@ -493,6 +486,47 @@ func checkEqual(field reflect.StructField, name string) bool {
 	return true
 }
 
+func (b *QueryBuilder) getStructFields(elemType reflect.Type, mode int, keys ...string) (out map[string]int) {
+	out = make(map[string]int)
+	b.fldTag = make(map[string]string)
+
+	fln := elemType.NumField()
+	for j := 0; j < fln; j++ {
+
+		field := elemType.Field(j)
+		tag := field.Tag.Get("gql")
+		jsn := field.Tag.Get("json")
+		fld := strings.ToLower(field.Name)
+		if jsn != "" {
+			b.fldTag[jsn] = tag
+		}
+		b.fldTag[field.Name] = tag
+		b.fldTag[fld] = tag
+		allow := true
+
+		if mode == 1 { // only
+			if len(keys) > 0 {
+				allow = some(keys, func(key string) bool {
+					return checkEqual(tag, jsn, fld, key)
+				})
+			} else {
+				allow = false
+			}
+		} else if mode == 2 { // exclude
+			if len(keys) > 0 {
+				allow = !some(keys, func(key string) bool {
+					return checkEqual(tag, jsn, fld, key)
+				})
+			}
+		}
+		if tag != "-" && tag != "" && allow && tag != "id" {
+			out[tag] = j
+		} else {
+			out[tag] = -1
+		}
+	}
+	return
+}
 func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builder) {
 	out = b
 	b.obj = o
@@ -508,8 +542,15 @@ func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builde
 	}()
 
 	vf := reflect.ValueOf(o).Elem()
+	tf := reflect.TypeOf(o).Elem()
 
-	if vf.Kind() == reflect.Slice {
+	if tf.Kind() == reflect.Slice {
+		elemType := tf.Elem()
+		if elemType.Kind() != reflect.Struct {
+			elemType = elemType.Elem()
+		}
+		structFields := b.getStructFields(elemType, mode, keys...)
+
 		b.values = make([]*OBJ, 0)
 		ln := vf.Len()
 		for i := 0; i < ln; i++ {
@@ -517,30 +558,12 @@ func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builde
 			if val.Kind() != reflect.Struct {
 				val = val.Elem()
 			}
-			fln := val.NumField()
 			data := make(OBJ)
-			for j := 0; j < fln; j++ {
-				value := val.Field(j)
-				field := val.Type().Field(j)
-				tag := field.Tag.Get("gql")
-
-
-				allow := true
-
-				if mode == 1 { // only
-					allow = some(keys, func(key string) bool {
-						return checkEqual(field, key)
-					})
-				}else if mode == 2 { // exclude
-					allow = !some(keys, func(key string) bool {
-						return checkEqual(field, key)
-					})
-				}
-
-				if tag != "-" && tag != "" && allow {
+			for key, j := range structFields {
+				if j > -1 {
+					value := val.Field(j)
 					if value.CanInterface() {
-						data[tag] = value.Interface()
-
+						data[key] = value.Interface()
 					}
 				}
 			}
@@ -548,31 +571,19 @@ func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builde
 		}
 		return
 	}
-	if vf.Kind() != reflect.Struct {
+	if tf.Kind() != reflect.Struct {
+		tf = tf.Elem()
 		vf = vf.Elem()
 	}
+
+	structFields := b.getStructFields(tf, mode, keys...)
+
 	data := make(OBJ)
-	ln := vf.NumField()
-	for i := 0; i < ln; i++ {
-		field := vf.Type().Field(i)
-		value := vf.Field(i)
-		tag := field.Tag.Get("gql")
-
-		allow := true
-
-		if mode == 1 { // only
-			allow = some(keys, func(key string) bool {
-				return checkEqual(field, key)
-			})
-		}else if mode == 2 { // exclude
-			allow = !some(keys, func(key string) bool {
-				return checkEqual(field, key)
-			})
-		}
-
-		if tag != "-" && tag != "" && allow {
+	for key, j := range structFields {
+		if j > -1 {
+			value := vf.Field(j)
 			if value.CanInterface() {
-				data[tag] = value.Interface()
+				data[key] = value.Interface()
 			}
 		}
 	}
@@ -610,11 +621,9 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 				if tag == "" {
 					tag = field.Tag.Get("json")
 				}
-
 				if tag != "" {
 					pairs[tag] = field.Name
 				}
-
 			}
 		}
 		var rows *sql.Rows
@@ -773,7 +782,9 @@ func (b *QueryBuilder) Run() (out Builder) {
 		return
 	}
 	b.lastInsertedId, err = a.LastInsertId()
-
+	if err != nil {
+		return
+	}
 	if b.obj != nil {
 		vf := reflect.ValueOf(b.obj).Elem()
 		if vf.Kind() != reflect.Struct && vf.Kind() != reflect.Slice {
@@ -784,15 +795,13 @@ func (b *QueryBuilder) Run() (out Builder) {
 			for i := 0; i < ln; i++ {
 				val := vf.Field(i)
 				tags := vf.Type().Field(i).Tag
-				if tags.Get("gql") == "id" || tags.Get("pk") == "true" {
+				if tags.Get("gql") == "id" {
 					val.Set(reflect.ValueOf(b.lastInsertedId))
 					break
 				}
 			}
 		}
-	}
-	if err != nil {
-		return
+		recover()
 	}
 	b.rowsAffected, err = a.RowsAffected()
 	return
