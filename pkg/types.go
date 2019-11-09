@@ -233,7 +233,8 @@ func (m *NullTime) UnmarshalJSON(data []byte) error {
 	var  val *time.Time
 	err := json.Unmarshal(data, &val)
 	if err != nil {
-		return err
+		m.Valid = false
+		return nil
 	}
 	if val != nil {
 		m.Valid = true
