@@ -391,7 +391,11 @@ func (b *QueryBuilder) Offset(offset int64) Builder {
 
 func (b *QueryBuilder) First(o interface{}) Builder {
 	b.limit = 1
-	return b.Scan(o)
+	b.Scan(o)
+	if b.fln < 1 {
+		b.err = fmt.Errorf("no row found")
+	}
+	return b
 }
 
 func (b *QueryBuilder) query() (*sql.Rows, error) {
@@ -711,8 +715,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 				op := pairs[str]
 				if op != "" {
 					obj := val.FieldByName(op).Addr().Interface()
-					ifc[i] =
-						obj
+					ifc[i] = obj
 				} else {
 					var obj interface{}
 					ifc[i] = &obj
