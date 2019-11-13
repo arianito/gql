@@ -19,6 +19,10 @@ type Builder interface {
 	Find(value interface{}) Builder
 	WhereNull(clause string) Builder
 	WhereNotNull(clause string) Builder
+
+	WhereLike(clause string, value interface{}) Builder
+	WhereNotLike(clause string, value interface{}) Builder
+
 	WhereNot(clause string, value interface{}) Builder
 	WhereGT(clause string, value interface{}) Builder
 	WhereGTE(clause string, value interface{}) Builder

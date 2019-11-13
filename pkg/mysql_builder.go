@@ -153,6 +153,16 @@ func (b *QueryBuilder) Where(field string, value interface{}) Builder {
 	b.wheres = append(b.wheres, fmt.Sprintf("%s = %s", b.extractName(field), Convert(value)))
 	return b
 }
+func (b *QueryBuilder) WhereLike(field string, value interface{}) Builder {
+	b.ops = append(b.ops, b.stp)
+	b.wheres = append(b.wheres, fmt.Sprintf("%s LIKE %s", b.extractName(field), Convert(value)))
+	return b
+}
+func (b *QueryBuilder) WhereNotLike(field string, value interface{}) Builder {
+	b.ops = append(b.ops, b.stp)
+	b.wheres = append(b.wheres, fmt.Sprintf("%s NOT LIKE %s", b.extractName(field), Convert(value)))
+	return b
+}
 func (b *QueryBuilder) Find(value interface{}) Builder {
 	b.ops = append(b.ops, b.stp)
 	b.wheres = append(b.wheres, fmt.Sprintf("%s = %s", b.extractName("id"), Convert(value)))
