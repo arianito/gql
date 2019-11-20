@@ -428,6 +428,7 @@ func (b *QueryBuilder) Count(count *int64) Builder {
 	var obj LenObj
 	a := Read("("+b.Query()+") a").Columns("COUNT(*) len").Use(b.u).Scan(&obj)
 	b.err = a.GetError()
+	*count = obj.Len
 	return b
 }
 func (b *QueryBuilder) LastInsertionId(id *int64) Builder {
