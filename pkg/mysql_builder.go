@@ -25,6 +25,7 @@ type QueryBuilder struct {
 	offset int64
 	tx     *sql.Tx
 	db     *sql.DB
+	u     interface{}
 	//
 	obj            interface{}
 	fldTag         map[string]string
@@ -374,6 +375,7 @@ func (b *QueryBuilder) Query() (out string) {
 }
 
 func (b *QueryBuilder) Use(a interface{}) Builder {
+	b.u = a
 	tx, ok := a.(*sql.Tx)
 	if ok {
 		b.tx = tx
@@ -420,16 +422,12 @@ func (b *QueryBuilder) query() (*sql.Rows, error) {
 }
 
 func (b *QueryBuilder) Count(count *int64) Builder {
-	var cpy []string
-	cpy = b.columns
-	b.columns = []string{Count("*", "len")}
 	type LenObj struct {
 		Len int64 `json:"len"`
 	}
 	var obj LenObj
-	b.Scan(&obj)
-	*count = obj.Len
-	b.columns = cpy
+	a := Read("("+b.Query()+") a").Columns("COUNT(*) len").Use(b.u).Scan(&obj)
+	b.err = a.GetError()
 	return b
 }
 func (b *QueryBuilder) LastInsertionId(id *int64) Builder {
