@@ -13,11 +13,6 @@ func float_to_string(f float64) string {
 }
 func Convert(value interface{}) (out string) {
 	out =  "NULL"
-	defer func() {
-		if p := recover(); p != nil {
-			out = "NULL"
-		}
-	}()
 	switch value.(type) {
 	case string:
 		d := value.(string)

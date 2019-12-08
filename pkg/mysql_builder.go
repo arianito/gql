@@ -548,7 +548,7 @@ func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builde
 	defer func() {
 		if p := recover(); p != nil {
 			b.err = fmt.Errorf("%v", p)
-			return
+			panic(p)
 		} else if err != nil {
 			b.err = err
 		}
@@ -609,7 +609,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 	defer func() {
 		if p := recover(); p != nil {
 			b.err = fmt.Errorf("%v", p)
-			return
+			panic(p)
 		} else if err != nil {
 			b.err = err
 		}
@@ -773,7 +773,7 @@ func (b *QueryBuilder) Run() (out Builder) {
 	defer func() {
 		if p := recover(); p != nil {
 			b.err = fmt.Errorf("%v", p)
-			return
+			panic(p)
 		} else if err != nil {
 			b.err = err
 		}
@@ -813,7 +813,6 @@ func (b *QueryBuilder) Run() (out Builder) {
 				}
 			}
 		}
-		recover()
 	}
 	b.rowsAffected, err = a.RowsAffected()
 	return
