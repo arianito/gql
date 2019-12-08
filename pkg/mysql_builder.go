@@ -25,7 +25,7 @@ type QueryBuilder struct {
 	offset int64
 	tx     *sql.Tx
 	db     *sql.DB
-	u     interface{}
+	u      interface{}
 	//
 	obj            interface{}
 	fldTag         map[string]string
@@ -35,6 +35,7 @@ type QueryBuilder struct {
 	cursor         *sql.Rows
 	err            error
 	structFields   map[string]int
+	customQuery    string
 	//
 }
 
@@ -370,6 +371,8 @@ func (b *QueryBuilder) Query() (out string) {
 		out = "UPDATE " + strings.Join(b.tables, ", ") + set + where
 	} else if b.typ == SqlTypDelete {
 		out = "DELETE FROM " + strings.Join(b.tables, ", ") + " WHERE " + b.getWhereClauses(false)
+	} else if b.typ == SqlTypCustom {
+		out = b.customQuery
 	}
 	return
 }
@@ -426,7 +429,7 @@ func (b *QueryBuilder) Count(count *int64) Builder {
 		Len int64 `json:"len"`
 	}
 	var obj LenObj
-	a := Read("("+b.Query()+") a").Columns("COUNT(*) len").Use(b.u).Scan(&obj)
+	a := Read("(" + b.Query() + ") a").Columns("COUNT(*) len").Use(b.u).Scan(&obj)
 	b.err = a.GetError()
 	*count = obj.Len
 	return b

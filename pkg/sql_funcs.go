@@ -19,6 +19,7 @@ const (
 	SqlTypRead   = SqlTyp(1)
 	SqlTypUpdate = SqlTyp(2)
 	SqlTypDelete = SqlTyp(3)
+	SqlTypCustom = SqlTyp(4)
 )
 
 func Now() SqlReserved {
@@ -57,6 +58,13 @@ func Query(fn func(builder Builder), alias string) string {
 	}
 	fn(b)
 	return "(" + b.Query() + ") " + alias
+}
+
+func Custom(query string) Builder {
+	q := QueryBuilder{}
+	q.typ = SqlTypCustom
+	q.customQuery = query
+	return &q
 }
 
 func Read(table string) Builder {
