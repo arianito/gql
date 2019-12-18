@@ -20,7 +20,10 @@ type Builder interface {
 	WhereNull(clause string) Builder
 	WhereNotNull(clause string) Builder
 
+	Model(ifc interface{}) Builder
 	WhereLike(clause string, value interface{}) Builder
+
+
 	WhereNotLike(clause string, value interface{}) Builder
 
 	WhereNot(clause string, value interface{}) Builder

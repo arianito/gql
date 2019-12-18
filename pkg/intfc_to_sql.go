@@ -1,6 +1,9 @@
 package gql
 
 import (
+	"bytes"
+	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -17,6 +20,20 @@ func Convert(value interface{}) (out string) {
 	case string:
 		d := value.(string)
 		out =   `'`+strings.ReplaceAll(d, `'`, `\'`)+`'`
+		return
+	case []byte:
+		d := value.([]byte)
+		out = "X'"+hex.EncodeToString(d)+"'"
+	case sql.RawBytes:
+		d := value.(sql.RawBytes)
+		out = "X'"+hex.EncodeToString(d)+"'"
+	case bytes.Buffer:
+		d := value.(bytes.Buffer)
+		out = "X'"+hex.EncodeToString(d.Bytes())+"'"
+		return
+	case *bytes.Buffer:
+		d := value.(*bytes.Buffer)
+		out = "X'"+hex.EncodeToString(d.Bytes())+"'"
 		return
 	case NullString:
 		d := value.(NullString)

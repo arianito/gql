@@ -40,7 +40,11 @@ type QueryBuilder struct {
 }
 
 func (b *QueryBuilder) extractName(name string) string {
-	if name[0] == '(' || b.obj == nil || b.fldTag == nil {
+	n := strings.LastIndex(name, " ")
+	if n > -1 {
+		name = name[n+1:]
+	}
+	if name[0] == '(' || b.fldTag == nil {
 		return name
 	}
 	spl := strings.Split(name, ".")
@@ -56,6 +60,7 @@ func (b *QueryBuilder) extractName(name string) string {
 			return spl[0] + "." + val
 		}
 	}
+
 	return name
 }
 
@@ -490,14 +495,9 @@ func (b *QueryBuilder) BindExclude(o interface{}, keys ...string) (out Builder) 
 	return
 }
 
-func checkEqual(tag, json, fieldName, name string) bool {
-	if tag != name {
-		jsn := json
-		if jsn != name {
-			if strings.ToLower(name) != fieldName {
-				return false
-			}
-		}
+func checkEqual(fieldName, name string) bool {
+	if strings.ToLower(name) != fieldName {
+		return false
 	}
 	return true
 }
@@ -511,19 +511,13 @@ func (b *QueryBuilder) getStructFields(elemType reflect.Type, mode int, keys ...
 
 		field := elemType.Field(j)
 		tag := field.Tag.Get("gql")
-		jsn := field.Tag.Get("json")
-		fld := strings.ToLower(field.Name)
-		if jsn != "" {
-			b.fldTag[jsn] = tag
-		}
 		b.fldTag[field.Name] = tag
-		b.fldTag[fld] = tag
 		allow := true
 
 		if mode == 1 { // only
 			if len(keys) > 0 {
 				allow = some(keys, func(key string) bool {
-					return checkEqual(tag, jsn, fld, key)
+					return field.Name == key
 				})
 			} else {
 				allow = false
@@ -531,7 +525,7 @@ func (b *QueryBuilder) getStructFields(elemType reflect.Type, mode int, keys ...
 		} else if mode == 2 { // exclude
 			if len(keys) > 0 {
 				allow = !some(keys, func(key string) bool {
-					return checkEqual(tag, jsn, fld, key)
+					return field.Name == key
 				})
 			}
 		}
@@ -541,6 +535,25 @@ func (b *QueryBuilder) getStructFields(elemType reflect.Type, mode int, keys ...
 			out[tag] = -1
 		}
 	}
+	return
+}
+
+func (b *QueryBuilder) extractTags(elemType reflect.Type) {
+	b.fldTag = make(map[string]string)
+	fln := elemType.NumField()
+	for j := 0; j < fln; j++ {
+		field := elemType.Field(j)
+		tag := field.Tag.Get("gql")
+		b.fldTag[field.Name] = tag
+	}
+}
+func (b *QueryBuilder) Model(ifc interface{}) (out Builder) {
+	out = b
+	tf := reflect.TypeOf(ifc).Elem()
+	if tf.Kind() != reflect.Struct {
+		tf = tf.Elem()
+	}
+	b.extractTags(tf)
 	return
 }
 func (b *QueryBuilder) bind(mode int, o interface{}, keys ...string) (out Builder) {
@@ -633,13 +646,10 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 		for i := 0; i < ln; i++ {
 			field := elem.Field(i)
 			tag := field.Tag.Get("gql")
-			if tag != "-" {
-				if tag == "" {
-					tag = field.Tag.Get("json")
-				}
-				if tag != "" {
-					pairs[tag] = field.Name
-				}
+			if tag != "-" && tag != "" {
+				pairs[tag] = field.Name
+			} else {
+				pairs[field.Name] = field.Name
 			}
 		}
 		var rows *sql.Rows
@@ -665,8 +675,7 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 				op := pairs[str]
 				if op != "" {
 					obj := el.FieldByName(op).Addr().Interface()
-					ifc[i] =
-						obj
+					ifc[i] = obj
 				} else {
 					var obj interface{}
 					ifc[i] = &obj
@@ -692,21 +701,15 @@ func (b *QueryBuilder) Scan(o interface{}) (out Builder) {
 			elem = elem.Elem()
 			val = val.Elem()
 		}
-
 		pairs := make(map[string]string)
 		ln := elem.NumField()
 		for i := 0; i < ln; i++ {
 			field := elem.Field(i)
 			tag := field.Tag.Get("gql")
-			if tag != "-" {
-				if tag == "" {
-					tag = field.Tag.Get("json")
-				}
-
-				if tag != "" {
-					pairs[tag] = field.Name
-				}
-
+			if tag != "-" && tag != "" {
+				pairs[tag] = field.Name
+			} else {
+				pairs[field.Name] = field.Name
 			}
 		}
 		var rows *sql.Rows
