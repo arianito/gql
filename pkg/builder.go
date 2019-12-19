@@ -2,7 +2,7 @@ package gql
 
 type Builder interface {
 	Table(table string) Builder
-	Columns(columns ...string) Builder
+	Columns(columns ...interface{}) Builder
 	BitwiseOr(field string, with int64, value int64) Builder
 	BitwiseAnd(field string, with int64, value int64) Builder
 	Join(table string, on string, fn ...func(b Builder)) Builder

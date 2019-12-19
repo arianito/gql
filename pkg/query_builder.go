@@ -72,9 +72,19 @@ func (b *QueryBuilder) Fill(values ...*OBJ) Builder {
 	return b
 }
 
-func (b *QueryBuilder) Columns(columns ...string) Builder {
+func (b *QueryBuilder) Columns(columns ...interface{}) Builder {
 	for _, column := range columns {
-		b.columns = append(b.columns, b.extractName(column))
+		switch column.(type) {
+		case string:
+			b.columns = append(b.columns, b.extractName(column.(string)))
+			break
+		case SqlReserved:
+			b.columns = append(b.columns, (column.(SqlReserved)).content)
+			break
+		case *SqlReserved:
+			b.columns = append(b.columns, (column.(*SqlReserved)).content)
+			break
+		}
 	}
 	return b
 }
@@ -138,12 +148,22 @@ func (b *QueryBuilder) BitwiseOr(field string, with int64, value int64) Builder 
 }
 
 func (b *QueryBuilder) OrderBy(clause ...string) Builder {
-	b.orders = append(b.orders, clause...)
+	for _, name := range clause {
+		if name[0] == '-' {
+			b.orders = append(b.orders, b.extractName(name[1:])+" DESC")
+		} else if name[0] == '+' {
+			b.orders = append(b.orders, b.extractName(name[1:])+" ASC")
+		} else {
+			b.orders = append(b.orders, b.extractName(name)+" ASC")
+		}
+	}
 	return b
 }
 
 func (b *QueryBuilder) GroupBy(clause ...string) Builder {
-	b.groups = append(b.groups, clause...)
+	for _, name := range clause {
+		b.groups = append(b.groups, b.extractName(name))
+	}
 	return b
 }
 func (b *QueryBuilder) Having(fn func(b Builder)) Builder {

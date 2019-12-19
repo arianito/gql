@@ -29,27 +29,28 @@ func Sql(sql string) SqlReserved {
 	return SqlReserved{content: sql}
 }
 
-func Count(name string, alias ...string) string {
+func Count(name string, alias ...string) SqlReserved {
 	op := "COUNT(" + name + ")"
 	if len(alias) > 0 {
 		op += " " + alias[0]
 	}
-	return op
+	return SqlReserved{content:op}
 }
-func CountDistinct(name string, alias ...string) string {
+func CountDistinct(name string, alias ...string) SqlReserved {
 	op := "COUNT(DISTINCT " + name + ")"
 	if len(alias) > 0 {
 		op += " " + alias[0]
 	}
-	return op
+	return SqlReserved{content:op}
+
 }
 
-func Sum(expression string, alias ...string) string {
+func Sum(expression string, alias ...string) SqlReserved {
 	op := "SUM(" + expression + ")"
 	if len(alias) > 0 {
 		op += " " + alias[0]
 	}
-	return op
+	return SqlReserved{content:op}
 }
 
 func Query(fn func(builder Builder), alias string) string {
