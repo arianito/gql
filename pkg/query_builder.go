@@ -823,7 +823,7 @@ func (b *QueryBuilder) Run() (out Builder) {
 	if err != nil {
 		return
 	}
-	if b.obj != nil {
+	if b.obj != nil && b.typ == SqlTypCreate {
 		vf := reflect.ValueOf(b.obj).Elem()
 		if vf.Kind() != reflect.Struct && vf.Kind() != reflect.Slice {
 			vf = vf.Elem()
