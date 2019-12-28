@@ -40,27 +40,9 @@ type QueryBuilder struct {
 }
 
 func (b *QueryBuilder) extractName(name string) string {
-	n := strings.LastIndex(name, " ")
-	if n > -1 {
-		name = name[n+1:]
+	if val, ok := b.fldTag[name]; ok {
+		return val
 	}
-	if name[0] == '(' || b.fldTag == nil {
-		return name
-	}
-	spl := strings.Split(name, ".")
-	if len(spl) == 1 {
-		spl[0] = strings.Trim(spl[0], " `")
-		if val, ok := b.fldTag[spl[0]]; ok {
-			return val
-		}
-	} else {
-		spl[0] = strings.Trim(spl[0], " `")
-		spl[1] = strings.Trim(spl[1], " `")
-		if val, ok := b.fldTag[spl[1]]; ok {
-			return spl[0] + "." + val
-		}
-	}
-
 	return name
 }
 
